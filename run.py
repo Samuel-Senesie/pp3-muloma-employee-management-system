@@ -37,7 +37,31 @@ Login if account already exists
 """
 def login():
     name = input("Enter your full Name: ").strip()
-    emp_id = input("Enter your Employee ID: ").strip()
+    emp_id = input("Enter your Employee ID: ").strip().upper()
+
+
+
+    """
+    Fetch all rows from the 'Employee info' sheet startting from the second row
+    """
+    employee_data = SHEET.get_all_values()[1:] #skip the first row
+
+    for row in employee_data:
+        full_name = row[0] 
+        stored_emp_id = row[1].strip().upper()
+
+        if name.lower() == full_name.lower() and emp_id == stored_emp_id:
+            print(f"Welcome, {name}!")
+
+            #update the last Login data 
+            current_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+            row_index = employee_data.index(row) + 2
+            SHEET.update_cell(row_index, 7, current_time)
+
+            shift_menu()
+            return
+
+
     print(f"Welcome, {name}!")
     shift_menu()
 
