@@ -18,6 +18,7 @@ CREDS = Credentials.from_service_account_file("creds.json")
 SCOPED_CREDS = CREDS.with_scopes(SCOPE)
 GSPREAD_CLIENT = gspread.authorize(SCOPED_CREDS)
 SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").sheet1
+SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("shift_data")
 
 """
 Main menu to dispaly welcome message and login access
@@ -58,12 +59,13 @@ def login():
             row_index = employee_data.index(row) + 2
             SHEET.update_cell(row_index, 7, current_time)
 
-            shift_menu()
+            #pass employee ID and name to shift menu
+            shift_menu(emp_id, name)
             return
 
 
     print(f"Welcome, {name}!")
-    shift_menu()
+    shift_menu(emp_id, name)
 
 #list of valid departments 
 valid_departments = [
@@ -143,8 +145,6 @@ def create_account():
     """
     Append new employee data to Google sheet for all fields
     """
-    SHEET.append_row([full_name, emp_id, email_or_phone, department, role, date_of_creation, last_login])
-
 
     print(f"Your account has been created! Your Employee ID is: {emp_id}")
     print("Write this ID down and keep it safe. You will need it to log in")
@@ -172,7 +172,7 @@ def create_account():
     """
     Function to display shift menu
     """
-def shift_menu():
+def shift_menu(emp_id, emp_name):
     print("\nShift Management Menu:")
     print("1. Start/End a shift")
     print("2. Look for available shifts")
@@ -181,24 +181,24 @@ def shift_menu():
     choice = input("Enter your choice: ").strip()
 
     if choice == "1":
-            handle_shift()
+            handle_shift(emp_id, emp_name)
     elif choice == "2":
             available_shift()
-    elif choice == "3":
-            main_menu()
     else:
         print("Invalid choice. Please try again.")
-        shift_menu()
+        main_menu()
     
     """
     Function to handle shift (Start, Pause, Resume, End)
     """
-def handle_shift():
+def handle_shift(emp_id, emp_name):
     shift_status = ""
     start_time = None
     pause_time = None
     resume_time = None
     end_time = None
+    pause_time_str = "N/A"
+    resume_time_str = "N/A"
 
     while True:
         print("\nShift Menu:")
@@ -208,18 +208,20 @@ def handle_shift():
         print("4. End shift")
         action = input("Select an action: ")
 
-        if action == "1":
+        if action == "1" and not start_time:
             start_time = datetime.now()
             shift_status = "Shift started"
             print(f"Shift started at {start_time.strftime('%H:%M:%S')}")
-        elif action == "2" and start_time:
+        elif action == "2" and start_time and not pause_time:
             pause_time = datetime.now()
+            pause_time_str = pause_time.strftime('%H:%M:%S')
             shift_status = "Shift paused"
-            print(f"shift paused at {pause_time.strftime('%H:%M:%S')}") #round time to there nearest seconds
+            print(f"shift paused at {pause_time_str}") #round time to there nearest seconds
         elif action == "3" and pause_time:
             resume_time = datetime.now()
+            resume_time_str = resume_time.strftime('%H:%M:%S')
             shift_status = "Shift resumed"
-            print(f"Shift resumed at {resume_time.strftime('%H:%M:%S')}")
+            print(f"Shift resumed at {resume_time_str}")
         elif action == "4" and start_time:
             end_time = datetime.now()
             shift_status = "Shift_ended"
@@ -227,12 +229,49 @@ def handle_shift():
             break
         else:
             print("Invalid action")
+
     if start_time and end_time:
         total_time = end_time - start_time
         break_time = resume_time - pause_time if pause_time and resume_time else 0
-        print(f"Total hours worked: {str(total_time).split('.')[0]}")
-        print(f"Total brak time: {str(break_time).split('.')[0]}")
-    shift_menu()
+        total_time_str = str(total_time).split('.')[0]
+        break_time_str = str(break_time).split('.')[0]
+
+        print(f"Total hours worked: {total_time_str}")
+        print(f"Total break time: {break_time_str}")
+
+        #Get shift date
+        shift_date = start_time.strftime('%d-%m-%Y')
+
+        receipt_issued = "Yes"
+
+        """
+        Append shift data to Google Sheet
+        """
+        shift_data = [
+            emp_name,
+            emp_id,
+            shift_date,
+            start_time.strftime('%H:%M:%S'),
+            end_time.strftime('%H:%M:%S'),
+            pause_time_str,
+            resume_time_str,
+            total_time_str,
+            break_time_str,
+            receipt_issued
+        ]
+
+        #SHEET.append_row([emp_id, emp_name, department, role, date_of_creation, last_login])
+
+        #print(f"Shift data to be added: {shift_data}")
+
+        #try:
+        SHIFT_SHEET.append_row(shift_data)
+        print("Shift data updated successfully!")
+        #except Exception as e:
+            #print(f"Error appending shift data to Google Sheet: {e}")
+
+
+    main_menu()
     
 
 
