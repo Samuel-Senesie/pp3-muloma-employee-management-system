@@ -17,7 +17,7 @@ SCOPE = [
 CREDS = Credentials.from_service_account_file("creds.json")
 SCOPED_CREDS = CREDS.with_scopes(SCOPE)
 GSPREAD_CLIENT = gspread.authorize(SCOPED_CREDS)
-SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").sheet1
+SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("employee_info")
 SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("shift_data")
 
 """
@@ -43,21 +43,21 @@ def login():
     """
     Fetch all rows from the 'Employee info' sheet startting from the second row
     """
-    employee_info_sheet = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("employee_info")
-    employee_data = employee_info_sheet.get_all_values()[1:] #skip the first row
+    #employee_info_sheet = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("employee_info")
+    employee_info = SHEET.get_all_values()[1:] #skip the first row
 
     #loop through rows of the 'employees_info' sheet to find find an exact match
 
-    for row in employee_data:
+    for row in employee_info:
         full_name = row[0].strip() #Get name exactly is in the sheet
-        stored_emp_id = row[1].strip()
+        stored_emp_id = row[2].strip()
 
         if name == full_name and emp_id == stored_emp_id:
             print(f"Welcome, {name}!")
 
             #update the last Login data 
             current_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-            row_index = employee_data.index(row) + 2
+            row_index = employee_info.index(row) + 2
             SHEET.update_cell(row_index, 7, current_time)
 
             #pass employee ID and name to shift menu
@@ -103,6 +103,24 @@ def create_account():
     last_name = input("Enter your last name: ").strip()
     email_or_phone = input("Enter your email or phone numer: ").strip()
 
+    #Get employees date of birtf
+    dob_input = input("Enter your date of birth (DD-MM-YYYY). ").strip()
+
+    try:
+        dob = datetime.strptime(dob_input, "%d-%m-%Y")
+    except ValueError:
+        print("Invalid date format. Please enter the date in the format DD-MM-YYYY.")
+        return(create_account)
+    
+    #check users age, should be 18 or older
+    today = datetime.now()
+    age = today.year -dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+    if age < 18:
+        print("Sorry, you must be 18 years or older to create an account")
+        main_menu()
+        return
+
     #Display valid departments and get the user's department 
     department = input("\nSelect your department from the list below: ")
     for i, dept in enumerate(valid_departments, 1):
@@ -115,7 +133,7 @@ def create_account():
         print("Invalid choice. Please selecte a valid department number.")
         department_choice = input("Enter the number corresponding to your department: ")
     
-    department= valid_departments[int(department_choice) - 1] 
+    department = valid_departments[int(department_choice) - 1] 
 
     print("\nSelect your role from the list below: ")
     for i, role in enumerate(valid_roles, 1):
@@ -136,7 +154,6 @@ def create_account():
     emp_id = str(uuid.uuid4())[0:5].upper()
 
     #role = "Employee"
-
     """
     Get the date of account creation and last login time
     """
@@ -146,6 +163,9 @@ def create_account():
     """
     Append new employee data to Google sheet for all fields
     """
+    employee_data = [full_name, dob_input, emp_id, email_or_phone, department, role, date_of_creation, last_login]
+    SHEET.append_row(employee_data)
+
 
     print(f"Your account has been created! Your Employee ID is: {emp_id}")
     print("Write this ID down and keep it safe. You will need it to log in")
