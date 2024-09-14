@@ -38,20 +38,21 @@ Login if account already exists
 """
 def login():
     name = input("Enter your full Name: ").strip()
-    emp_id = input("Enter your Employee ID: ").strip().upper()
-
-
+    emp_id = input("Enter your Employee ID: ").strip()
 
     """
     Fetch all rows from the 'Employee info' sheet startting from the second row
     """
-    employee_data = SHEET.get_all_values()[1:] #skip the first row
+    employee_info_sheet = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("employee_info")
+    employee_data = employee_info_sheet.get_all_values()[1:] #skip the first row
+
+    #loop through rows of the 'employees_info' sheet to find find an exact match
 
     for row in employee_data:
-        full_name = row[0] 
-        stored_emp_id = row[1].strip().upper()
+        full_name = row[0].strip() #Get name exactly is in the sheet
+        stored_emp_id = row[1].strip()
 
-        if name.lower() == full_name.lower() and emp_id == stored_emp_id:
+        if name == full_name and emp_id == stored_emp_id:
             print(f"Welcome, {name}!")
 
             #update the last Login data 
@@ -64,8 +65,8 @@ def login():
             return
 
 
-    print(f"Welcome, {name}!")
-    shift_menu(emp_id, name)
+    print(f"Login failed. The name or ID does not match our records")
+    main_menu()
 
 #list of valid departments 
 valid_departments = [
