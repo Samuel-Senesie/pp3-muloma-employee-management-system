@@ -151,6 +151,93 @@ def create_account():
     main_menu()
 
 
+    """
+    Function to handle shift menu
+    """
+    #def shift_menu():
+       # print("\nWhat would you like to do?")
+       # print("1. Start/End a shift")
+       # print("2. Look for available shifts")
+        #choice = input("Enter your choice: ").strip()
+
+        #if choice == "1":
+           # handle_shift()
+        #elif choice == "2":
+           # available_shift()
+        #elif choice == "3":
+            #main_menu()
+        #else:
+            #print("Invalid choice. Return to main menu.")
+           # main_menu()
+    """
+    Function to display shift menu
+    """
+def shift_menu():
+    print("\nShift Management Menu:")
+    print("1. Start/End a shift")
+    print("2. Look for available shifts")
+    print("3. Log out")
+
+    choice = input("Enter your choice: ").strip()
+
+    if choice == "1":
+            handle_shift()
+    elif choice == "2":
+            available_shift()
+    elif choice == "3":
+            main_menu()
+    else:
+        print("Invalid choice. Please try again.")
+        shift_menu()
+    
+    """
+    Function to handle shift (Start, Pause, Resume, End)
+    """
+def handle_shift():
+    shift_status = ""
+    start_time = None
+    pause_time = None
+    resume_time = None
+    end_time = None
+
+    while True:
+        print("\nShift Menu:")
+        print("1. Start shift")
+        print("2. Pause shift")
+        print("3. Resume shift")
+        print("4. End shift")
+        action = input("Select an action: ")
+
+        if action == "1":
+            start_time = datetime.now()
+            shift_status = "Shift started"
+            print(f"Shift started at {start_time.strftime('%H:%M:%S')}")
+        elif action == "2" and start_time:
+            pause_time = datetime.now()
+            shift_status = "Shift paused"
+            print(f"shift paused at {pause_time.strftime('%H:%M:%S')}") #round time to there nearest seconds
+        elif action == "3" and pause_time:
+            resume_time = datetime.now()
+            shift_status = "Shift resumed"
+            print(f"Shift resumed at {resume_time.strftime('%H:%M:%S')}")
+        elif action == "4" and start_time:
+            end_time = datetime.now()
+            shift_status = "Shift_ended"
+            print(f"Shift ended at {end_time.strftime('%H:%M:%S')}")
+            break
+        else:
+            print("Invalid action")
+    if start_time and end_time:
+        total_time = end_time - start_time
+        break_time = resume_time - pause_time if pause_time and resume_time else 0
+        print(f"Total hours worked: {str(total_time).split('.')[0]}")
+        print(f"Total brak time: {str(break_time).split('.')[0]}")
+    shift_menu()
+    
+
+
+
+
 
 if __name__ == "__main__":
     main_menu()
