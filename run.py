@@ -58,7 +58,7 @@ def login():
             #update the last Login data 
             current_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
             row_index = employee_info.index(row) + 2
-            SHEET.update_cell(row_index, 7, current_time)
+            SHEET.update_cell(row_index, 8, current_time)
 
             #pass employee ID and name to shift menu
             shift_menu(emp_id, name)
@@ -120,6 +120,19 @@ def create_account():
         print("Sorry, you must be 18 years or older to create an account")
         main_menu()
         return
+    
+    #Retrieve existing employee data from database
+    employee_info = SHEET.get_all_values()[1:]
+
+    #Compare employee data for date of birth and email/phone number with existing data base
+    for row in employee_info:
+        stored_dob = row[1].strip()
+        stored_email_or_phone = row[3].strip()
+
+        if dob_input == stored_dob and email_or_phone == stored_email_or_phone:
+            print("Account with the same data already exists.")
+            main_menu()
+            return
 
     #Display valid departments and get the user's department 
     department = input("\nSelect your department from the list below: ")
@@ -150,7 +163,7 @@ def create_account():
 
     full_name = f"{first_name} {last_name}"
 
-    #Generate a short employee ID, 5 characters long
+    #Generate a short employee ID, 5 characters long in upperclass
     emp_id = str(uuid.uuid4())[0:5].upper()
 
     #role = "Employee"
