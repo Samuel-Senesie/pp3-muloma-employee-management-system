@@ -130,9 +130,42 @@ def create_account():
         stored_email_or_phone = row[3].strip()
 
         if dob_input == stored_dob and email_or_phone == stored_email_or_phone:
-            print("Account with the same data already exists.")
+            print("An account with the same data already exists.")
             main_menu()
             return
+
+    #Display and collect employment type
+    employment_type = ""
+    while employment_type not in ["full-time", "part-time"]:
+        employment_type = input("Are you a full-time or part-time employee? (full-time/part-time): ").strip().lower()
+    
+    #Full-time employees to selecte between fixed and flexible shifts 
+    shift_type = ""
+    if employment_type == "full-time":
+        while shift_type not in ["fixed", "flexible"]:
+            shift_type = input("Do you prefere a fixed of flexible shift? (fixed/flexible): ").strip().lower()
+        
+        if shift_type == "fixed":
+            shift_time = ""
+            while shift_time not in ["early", "late"]:
+                shift_time = input("Would you prefer an early (08:00 - 16:30) or late (13:30 - 22:00) shift? (early/late): ").strip().lower()
+        elif shift_type == "flexible":
+            print("You will be assigned 3 early and 3 late shifts each week.")
+    else:
+        print("\nPart-time employees can work up to 3 days per week, for a total of 20-40hours.")
+        print("Shift options are:")
+        print("1. Morning: 08:00 - 13:00")
+        print("2. Afternoon: 13:00 -16:00")
+        print("3. Evening: 16:00 - 21:00")
+
+        part_time_shifts = []
+        while len(part_time_shifts) < 3:
+            shift_choice = input(f"Select shift {len(part_time_shifts) + 1} (1/2/3): ").strip()
+            if shift_choice in ["1", "2", "3"]:
+                shift_map = {"1": "Morning: 08:00 - 13:00", "2": "Afternoon: 13:00 - 16:00", "3": "Evening: 16:00 - 21:30"}
+                part_time_shifts.append(shift_map[shift_choice])
+            else:
+                print("Invalid choice. Please try again.")
 
     #Display valid departments and get the user's department 
     department = input("\nSelect your department from the list below: ")
@@ -162,11 +195,9 @@ def create_account():
 
 
     full_name = f"{first_name} {last_name}"
-
     #Generate a short employee ID, 5 characters long in upperclass
     emp_id = str(uuid.uuid4())[0:5].upper()
 
-    #role = "Employee"
     """
     Get the date of account creation and last login time
     """
@@ -176,9 +207,8 @@ def create_account():
     """
     Append new employee data to Google sheet for all fields
     """
-    employee_data = [full_name, dob_input, emp_id, email_or_phone, department, role, date_of_creation, last_login]
+    employee_data = [full_name, dob_input, emp_id, email_or_phone, department, role, employment_type, shift_type if employment_type == "full-time" else ", ".join(part_time_shifts), date_of_creation, last_login]
     SHEET.append_row(employee_data)
-
 
     print(f"Your account has been created! Your Employee ID is: {emp_id}")
     print("Write this ID down and keep it safe. You will need it to log in")
