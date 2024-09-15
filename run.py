@@ -303,6 +303,22 @@ def handle_shift(emp_id, emp_name):
         print("Shift data updated successfully!")
         #except Exception as e:
             #print(f"Error appending shift data to Google Sheet: {e}")
+"""
+Function to display available shifts
+"""
+def available_shift():
+    shifts = ["Morning Shifts: 9AM - 1PM", "Afternoon Shift: 1PM - 5PM", "Night Shift: 5PM - 9PM"]
+    print("Available Shifts:")
+    for i, shift in enumerate(shifts):
+        print(f"{i+1}. {shifts}")
+    choice = input("Select a shift: ")
+
+    try: 
+        shift_choice = shifts[int(choice) - 1]
+        print(f"Shift confirmed: {shift_choice}")
+    except (IndexError, ValueError):
+        print("Invalid shift selection")
+
 
 
     main_menu()
