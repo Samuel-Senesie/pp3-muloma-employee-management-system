@@ -4,7 +4,7 @@ Imported libraries for runing the app
 import gspread
 from google.oauth2.service_account import Credentials
 import uuid #for generating unique ID
-from datetime import datetime #date and time for shift timedtamps
+from datetime import datetime, timedelta #date and time for shift timedtamps
 import sys
 
 #Set project scope
@@ -239,19 +239,53 @@ def create_account():
 def shift_menu(emp_id, emp_name):
     print("\nShift Management Menu:")
     print("1. Start/End a shift")
-    print("2. Look for available shifts")
-    print("3. Log out")
+    print("2. View my Shifts")
+    print("3. Select Available Shifts")
+    print("4. Log out")
 
     choice = input("Enter your choice: ").strip()
 
     if choice == "1":
             handle_shift(emp_id, emp_name)
     elif choice == "2":
-            available_shift()
+        view_shifts(emp_id, emp_name)        
+    elif choice == "3":
+            select_shift(emp_id, emp_name)
+    elif choice == "4":
+        main_menu()
     else:
         print("Invalid choice. Please try again.")
-        main_menu()
+        shift_menu(emp_id, emp_name)
+
+"""
+Function to display available shifts
+"""
+def view_shifts(emp_id, emp_name):
+    from datetime import datetime
+
+    today = datetime.now()
+    first_day_of_month = today.replace(day=1)
+    last_day_of_month = (today.replace(month=today.month % 12 + 1, day=1) - timedelta(days=1))
+
+    shift_records = SHIFT_SHEET.get_all_values()[1:]
     
+    employee_shifts = []
+    for record in shift_records:
+        if record[1] == emp_id:
+            shift_date = datetime.strptime(record[2], '%d-%m-%Y')
+            if first_day_of_month <= shift_date <= last_day_of_month:
+                employee_shifts.append(record)
+        
+    if employee_shifts:
+        print(f"\nYour shifts for {today.strftime('%B %Y')}:")
+        for shift in employee_shifts:
+            print(f"Date: {shift[2]}, Start: {shift[3]}, End: {shift[4]}")
+    else:
+        print("You have no shifts scheduled for this month.")
+
+    shift_menu(emp_id, emp_name)
+
+
     """
     Function to handle shift (Start, Pause, Resume, End)
     """
