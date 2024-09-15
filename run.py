@@ -19,6 +19,7 @@ SCOPED_CREDS = CREDS.with_scopes(SCOPE)
 GSPREAD_CLIENT = gspread.authorize(SCOPED_CREDS)
 SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("employee_info")
 SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("shift_data")
+AVAILABLE_SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("available_shifts")
 
 """
 Main menu to dispaly welcome message and login access
@@ -258,7 +259,7 @@ def shift_menu(emp_id, emp_name):
         shift_menu(emp_id, emp_name)
 
 """
-Function to display available shifts
+Function to display all available shifts for the month
 """
 def view_shifts(emp_id, emp_name):
     from datetime import datetime
@@ -268,7 +269,7 @@ def view_shifts(emp_id, emp_name):
     last_day_of_month = (today.replace(month=today.month % 12 + 1, day=1) - timedelta(days=1))
 
     shift_records = SHIFT_SHEET.get_all_values()[1:]
-    
+
     employee_shifts = []
     for record in shift_records:
         if record[1] == emp_id:
@@ -283,6 +284,65 @@ def view_shifts(emp_id, emp_name):
     else:
         print("You have no shifts scheduled for this month.")
 
+    shift_menu(emp_id, emp_name)
+
+"""
+Function to allow employees to select shifts
+"""
+def select_shift(emp_id, emp_name):
+    available_shift_sheet = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("available_shifts")
+    available_shifts = available_shift_sheet.get_all_values()[1:]
+
+    if not available_shifts:
+        print("No available shifts at the moment")
+        shift_menu(emp_id, emp_name)
+        return
+    print("\nAvailable Shifts:")
+    for idx, shift in enumerate(available_shifts, start=1):
+        shift_date = shift[0]
+        shift_type = shift[1]
+        start_time = shift[2]
+        end_time = shift[3]
+        print(f"{idx}. Date: {shift_date}, Shift: {shift_type}, Start: {start_time}, End: {end_time}")
+    shift_choice = input("Enter the number of the shift you want to select (or '0' to cancel): ").strip()
+    if shift_choice == '0':
+        shift_menu(emp_id, emp_name)
+        return
+    #validate shift choice
+    if not shift_choice.isdigit() or not 1 <= int(shift_choice) <= len(available_shifts):
+        print("Invalid choice")
+        select_shift(emp_id, emp_name)
+        return
+    
+    #Get choosen shift details
+    chosen_shift = available_shifts[int(shifts_choice) - 1]
+    shift_date_str = chosen_shifts[0]
+
+    #Check if employee already has a shift on that date
+    shift_records = SHIFT_SHEET.get_all_values()[1:]
+    for record in shift_records:
+        if record[1] == emp_id and record[2] == shift_date_str:
+            print("You already have a shift scheduled on this date.")
+            shift_menu(emp_id, emp_name)
+            return
+    shift_date = [
+        emp_name,
+        emp_id,
+        shift_date_str,
+        chosen_shift[2],
+        chosen_shift[3],
+        'N/A',
+        'N/A',
+        'N/A',
+        'N/A',
+        'No'
+    ]
+
+    SHIFT_SHEET.append_row(shift_date)
+
+    available_shift_sheet.delet_row(int(shift_choice) + 1)
+
+    print("Shift successfully assigned to you")
     shift_menu(emp_id, emp_name)
 
 
