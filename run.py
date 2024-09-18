@@ -3,6 +3,7 @@ Imported libraries for runing the app
 """
 import gspread
 from google.oauth2.service_account import Credentials
+import re
 import uuid #for generating unique ID
 import calendar
 from datetime import datetime, timedelta #date and time for shift timedtamps
@@ -130,13 +131,47 @@ def login():
     print(f"Login failed. The name or ID does not match our records")
     main_menu()
 
+#Function to validate employee name 
+def validate_name(name):
+    return re.fullmatch(r"[A-Za-z\s\-]+", name) is not None
+
+#function to validate phone number (only digits allowed)
+def validate_phone_number(phone_number):
+    return re.fullmatch(r"\d{10,15}", phone_number) is not None
+
+# Function to validate email address
+def validate_email(email):
+    return re.fullmatch(r"[^@]+[^@]+\.[^@]+", email) is not None
+
+# Function to validate either a phone number or email
+def validate_contact_info(contact_info):
+    if validate_phone_number(contact_info):
+        return "Phone number is valid."
+    elif validate_email(contact_info):
+        return "Email address is valid."
+    else:
+        return "The phone number or email address is invalid"
+
 """
 Function to create account for new Employees
 """
 def create_account():
+    # Validate first name
     first_name = input("Enter your first name: ").strip()
+    while not validate_name(first_name):
+        print("Invalid first name, only letters, spaces and hyphens are allowed")
+        first_name = input("Enter your first name: ").strip()
+    # Validate last name
     last_name = input("Enter your last name: ").strip()
+    while not validate_name(last_name):
+        print("Invalid last name, only letters, spaces and hyphens are allowed")
+        last_name = input("Enter your last name: ").strip()
+    
+    # Validate phone number or email address
     email_or_phone = input("Enter your email or phone numer: ").strip()
+    while validate_contact_info(email_or_phone) != "Phone number is valid." and validate_contact_info(email_or_phone) != "Email address is valid.":
+        print(validate_contact_info(email_or_phone))
+        email_or_phone = input("Enter a valid phone number or email address: ").strip()
 
     #Get employees date of birth
     dob_input = input("Enter your date of birth (DD-MM-YYYY). ").strip()
@@ -364,31 +399,7 @@ def handle_shift(emp_id, emp_name):
         print("Shift data updated successfully!")
 
 
-"""
-Function to display all available shifts for the month
-"""
-def view_shifts(emp_id, emp_name):
-    today = datetime.now()
-    first_day_of_month = today.replace(day=1)
-    last_day_of_month = (today.replace(month=today.month % 12 + 1, day=1) - timedelta(days=1))
 
-    shift_records = PLANNED_SHIFT_SHEET.get_all_values()[1:]
-
-    employee_shifts = []
-    for record in shift_records:
-        if record[0] == emp_id:
-            shift_date = datetime.strptime(record[5], '%Y-%m-%d')
-            if first_day_of_month <= shift_date <= last_day_of_month:
-                employee_shifts.append(record)
-        
-    if not employee_shifts:
-        print(f"\nNo Shifts found for {emp_name} ({emp_id}) this month.")
-    else:
-        print(f"\nShifts for {emp_name} {emp_id} this month.")
-        for shift in employee_shifts:
-            print(f"Date: {shift[5]}, Shift Type: {shift[6]}, Start Time: {shift[8]}, End Time: {shift[8]} Hours: {shift[7]}")
-
-    shift_menu(emp_id, emp_name)
 """
 Function to generate shifts based on employment type and shift model
 """
@@ -432,7 +443,7 @@ def generate_planned_shifts():
                 if shift_model == 'Fixed':
                     shift_key = f"fixed-{shift_type.lower()}"
                 else:
-                    if (current_date -start_date).days % 6 < 3:
+                    if (current_date - start_date).days % 6 < 3:
                         shift_key = 'flexible-early'
                     else:
                         shift_key = 'flexible-late'
@@ -457,7 +468,6 @@ def generate_planned_shifts():
                 employment_type,
                 shift_model,
                 department,
-                current_date.strftime('%Y-%m-%d'),
                 shift_date,
                 shift_type,
                 number_of_hours,
@@ -472,8 +482,33 @@ def generate_planned_shifts():
 generate_planned_shifts()
 
 
+"""
+Function to display all available shifts for the month
+"""
+def view_shifts(emp_id, emp_name):
+    today = datetime.now()
+    first_day_of_month = today.replace(day=1)
+    last_day_of_month = (today.replace(month=today.month % 12 + 1, day=1) - timedelta(days=1))
+
+    shift_records = PLANNED_SHIFT_SHEET.get_all_values()[1:]
+
+    employee_shifts = []
+    for record in shift_records:
+        if record[0] == emp_id:
+            shift_date = datetime.strptime(record[5], '%Y-%m-%d')
+            if first_day_of_month <= shift_date <= last_day_of_month:
+                employee_shifts.append(record)
+        
+    if not employee_shifts:
+        print(f"\nNo Shifts found for {emp_name} ({emp_id}) this month.")
+    else:
+        print(f"\nShifts for {emp_name} {emp_id} this month.")
+        for shift in employee_shifts:
+            print(f"Date: {shift[5]}, Shift Type: {shift[6]}, Start Time: {shift[8]}, End Time: {shift[8]} Hours: {shift[7]}")
+
+    shift_menu(emp_id, emp_name)
+
 
 
 if __name__ == "__main__":
     main_menu()
-    #generate_planned_shifts()
