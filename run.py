@@ -8,7 +8,7 @@ import calendar
 from datetime import datetime, timedelta #date and time for shift timedtamps
 import sys
 
-#Set project scope
+#Set project scope for Google Sheets API
 SCOPE = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive.file",
@@ -19,15 +19,26 @@ CREDS = Credentials.from_service_account_file("creds.json")
 SCOPED_CREDS = CREDS.with_scopes(SCOPE)
 GSPREAD_CLIENT = gspread.authorize(SCOPED_CREDS)
 
-#Open relevant sheets
+#Open relevant Google sheets
 SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("employee_info")
 SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("shift_data")
 AVAILABLE_SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("available_shifts")
 PLANNED_SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("planned_shifts")
 
-"""
-Validate Departments and Roles
-"""
+#Shift definitions
+FULL_TIME_FIXED_SHIFTS = { 
+        'early': ('08:00', '13:00'),
+        'late': ('13:30', '22:00')
+    }
+
+PART_TIME_SHIFTS = {
+        'morning': ('08:00', '13:00'),
+        'afternoon': ('13:00', '16:00'),
+        'evening': ('16:00', '21:00')
+    }
+
+#Validate Departments and Roles
+
 #list of valid departments 
 valid_departments = [
     "Poultry Farming",
@@ -94,9 +105,9 @@ def login():
             #update the last Login data 
             current_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
             row_index = employee_info.index(row) + 2
-            SHEET.update_cell(row_index, 8, current_time)
+            SHEET.update_cell(row_index, 11, current_time)
 
-            #pass employee ID and name to shift menu
+            #Pass employee ID and name to shift menu
             shift_menu(emp_id, name)
             return
 
@@ -118,9 +129,9 @@ def create_account():
         dob = datetime.strptime(dob_input, "%d-%m-%Y")
     except ValueError:
         print("Invalid date format. Please enter the date in the format DD-MM-YYYY.")
-        return(create_account)
+        return create_account()
     
-    #check users age, should be 18 or older
+    #check users age if they are 18 or older
     today = datetime.now()
     age = today.year -dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
@@ -132,11 +143,7 @@ def create_account():
     #Retrieve and compare employee data for date of birth and email/phone number with existing data base
     employee_info = SHEET.get_all_values()[1:]
     for row in employee_info:
-        #stored_dob = row[1].strip()
-        #stored_email_or_phone = row[3].strip()
-
         if dob_input == row[1].strip() and email_or_phone == row[3].strip():
-        #if dob_input == stored_dob and email_or_phone == stored_email_or_phone:
             print("An account with the same data already exists.")
             main_menu()
             return
@@ -147,45 +154,43 @@ def create_account():
         employment_type = input("Are you a full-time or part-time employee? (full-time/part-time): ").strip().lower()
     
     #Full-time employees to selecte between fixed and flexible shifts 
+    shift_model = ""
     shift_type = ""
-    shift_time = ""
     if employment_type == "full-time":
-        while shift_type not in ["fixed", "flexible"]:
-            shift_type = input("Do you prefere a fixed of flexible shift? (fixed/flexible): ").strip().lower()
-    
-        if shift_type == "fixed":
-            while shift_time not in ["early", "late"]:
-                shift_time = input("Would you prefer an early (08:00 - 16:30) or late (13:30 - 22:00) shift? (early/late): ").strip().lower()
-        elif shift_type == "flexible":
+        while shift_model not in ["fixed", "flexible"]:
+            shift_model = input("Do you prefere a fixed of flexible shift? (fixed/flexible): ").strip().lower()
+        if shift_model == "fixed":
+            while shift_type not in ["early", "late"]:
+                shift_type = input("Would you prefer an early (08:00 - 16:30) or late (13:30 - 22:00) shift? (early/late): ").strip().lower()
+        elif shift_model == "flexible":
             print("You will be assigned 3 early and 3 late shifts each week.")
     else:
+        shift_model = "fixed"
         print("\nPart-time employees can work up to 3 days per week, for a total of 20-40hours.")
-        print("Shift options are:")
-        print("1. Morning: 08:00 - 13:00")
-        print("2. Afternoon: 13:00 -16:00")
-        print("3. Evening: 16:00 - 21:00")
-
+        print("Shift options are: \n1. Morning: 08:00 - 13:00\n2. Afternoon: 13:00 - 16:00\n3. Evening: 16:00 - 21:00")
         part_time_shifts = []
         while len(part_time_shifts) < 3:
             shift_choice = input(f"Select shift {len(part_time_shifts) + 1} (1/2/3): ").strip()
-            shift_map = {"1": "Morning: 08:00 - 13:00", "2": "Afternoon: 13:00 - 16:00", "3": "Evening: 16:00 - 21:30"}
+            shift_map = {"1": "Morning", "2": "Afternoon", "3": "Evening"}
             if shift_choice in ["1", "2", "3"]:
                 part_time_shifts.append(shift_map[shift_choice])
             else:
                 print("Invalid choice. Please try again.")
+        shift_type = " , ".join(part_time_shifts)
 
-    #Department and role selection 
-    print("\nSelect your department from the list below: ")
+    #Department selection
+    print("\nSelect your department:")
     for i, dept in enumerate(valid_departments, 1):
-        print(f"{i}. {dept}")
+        print(f"{1}. {dept}")
     department_choice = input("Enter the number that corresponds with your department: ")
 
-    #validate department input
+    #Validate department input
     while not department_choice.isdigit() or int(department_choice) not in range(1, len(valid_departments) + 1):
         print("Invalid choice. Please selecte a valid department number.")
         department_choice = input("Enter the number corresponding to your department: ")
     department = valid_departments[int(department_choice) - 1] 
 
+    # Role selection
     print("\nSelect your role from the list below: ")
     for i, role in enumerate(valid_roles, 1):
         print(f"{i}. {role}")
@@ -197,28 +202,48 @@ def create_account():
         role_choice = input("Enter the number that corresponds to your role: ")
     role = valid_roles[int(role_choice) - 1] #get the selected role 
 
-
     full_name = f"{first_name} {last_name}"
-    #Generate a short employee ID, 5 characters long in upperclass
-    emp_id = str(uuid.uuid4())[0:5].upper()
 
-    """
-    Get the date of account creation and last login time
-    """
-    date_of_creation = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-    last_login = "N/A"
-    shift_data = shift_type if employment_type == "full-time" else " , ".join(part_time_shifts)
+    # Review data before crating the employee ID
+    print("\nPlease review your information for correctness")
+    print(f"Full Name: {full_name}")
+    print(f"Date of Birth: {dob_input}")
+    print(f"Email/Phone: {email_or_phone}")
+    print(f"Department: {department}")
+    print(f"Role: {role}")
+    print(f"Employment Type: {employment_type}")
+    print(f"Shift Model: {shift_model}")
+    print(f"Shift Type: {shift_type}")
 
+    # Ask user to confirmation
+    confim = input("\nIs the above information correct? (yes/no): ").strip().lower()
 
-    """
-    Append new employee data to Google sheet for all fields
-    """
-    employee_data = [full_name, dob_input, emp_id, email_or_phone, department, role, employment_type, shift_type if employment_type == "full-time" else ", ".join(part_time_shifts), date_of_creation, last_login]
-    SHEET.append_row(employee_data)
+    if confim == "yes":
+        #Generate a short employee ID, 5 characters long in upperclass
+        emp_id = str(uuid.uuid4())[0:5].upper()
 
-    print(f"Your account has been created! Your Employee ID is: {emp_id}")
-    print("Write this ID down and keep it safe. You will need it to log in")
-    main_menu()
+        """
+        Get the date of account creation and last login time
+        """
+        date_of_creation = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+        last_login = "N/A"
+        #shift_data = shift_type if employment_type == "full-time" else " , ".join(part_time_shifts)
+
+        """
+         Append new employee data to Google sheet for all fields
+        """
+        employee_data = [
+            full_name, dob_input, emp_id, email_or_phone, department, 
+            role, employment_type, shift_model, shift_type, date_of_creation, last_login
+        ]
+        SHEET.append_row(employee_data)
+
+        print(f"Your account has been created! Your Employee ID is: {emp_id}")
+        print("Write this ID down and keep it safe. You will need it to log in")
+        main_menu()
+    else:
+        print("Please correct your information.")
+        create_account() #Rsetart the process
 
 """
 Function to display shift menu
@@ -244,264 +269,11 @@ def shift_menu(emp_id, emp_name):
         print("Invalid choice. Please try again.")
         shift_menu(emp_id, emp_name)
 
+# Function to handle shift start/end
 
 """
-Function to display all available shifts for the month
+Function to handle shift (Start, Pause, Resume, End)
 """
-def view_shifts(emp_id, emp_name):
-    today = datetime.now()
-    first_day_of_month = today.replace(day=1)
-    last_day_of_month = (today.replace(month=today.month % 12 + 1, day=1) - timedelta(days=1))
-
-    shift_records = SHIFT_SHEET.get_all_values()[1:]
-
-    employee_shifts = []
-    for record in shift_records:
-        if record[1] == emp_id:
-            shift_date = datetime.strptime(record[2], '%d-%m-%Y')
-            if first_day_of_month <= shift_date <= last_day_of_month:
-                employee_shifts.append(record)
-        
-    if employee_shifts:
-        print(f"\nYour shifts for {today.strftime('%B %Y')}:")
-        for shift in employee_shifts:
-            print(f"Date: {shift[2]}, Start: {shift[3]}, End: {shift[4]}")
-    else:
-        print("You have no shifts scheduled for this month.")
-
-    shift_menu(emp_id, emp_name)
-
-"""
-Function to automatically generate and append planned shifts based on employee data
-"""
-def generate_planned_shifts():
-    employee_info = SHEET.get_all_records()
-    current_month = datetime.now().month
-    current_year = datetime.now().year
-
-    workdays = get_workdays_for_month(current_month, current_year)
-
-    full_time_fixed_shifts = {
-        "early": ("08:00", "16:30"),
-        "late": ("13:30", "22:00")
-    }
-
-    part_time_shifts = {
-        "morning": ("08:00", "13:00"),
-        "afternoon": ("13:00", "16:00"),
-        "evening": ("16:00", "21:00")
-    }
-
-    shift_allocations = []
-    for employee in employee_info:
-        emp_id = employee.get('employee_id', 'N/A')
-        emp_name = employee.get('name', 'N/A')
-        emp_type = employee.get('employee_type', 'N/A')
-        shift_type = employee.get('shift_type', 'N/A')
-        shift_preference = employee.get('shift', 'N/A')
-
-        for day in workdays :
-            if emp_type == "full-time":
-                if shift_type == "fixed":
-                    shift_preference = employee.get('shift', 'early')
-                    shift_start, shift_end = full_time_fixed_shifts.get(shift_preference, full_time_fixed_shifts["early"])
-                    hours_per_day = 8
-                elif shift_type == "flexible":
-                    if workdays.index(day) % 6 < 3:
-                        shift_start, shift_end = full_time_fixed_shifts["early"]
-                    else:
-                        shift_start, shift_end = full_time_fixed_shifts["late"]
-                    hours_per_day = 8
-            elif emp_type == "part-time":
-                shift_preference = employee.get('shift', 'morning')
-                shift_start, shift_end = part_time_shifts.get(shift_preference, part_time_shifts["morning"])
-                hours_per_day = 5 if shift_preference != "evening" else 8.5
-            
-            shift_allocations.append({
-                "employee_id": emp_id,
-                "employee_name":  emp_name,
-                "date": day.strftime("%d-%m-%Y"),
-                "shift_start": shift_start,
-                "shift_end": shift_end,
-                "hours": hours_per_day
-            })
-        
-        for allocation in shift_allocations:
-            PLANNED_SHIFT_SHEET.append_row([
-                allocation['employee_id'],
-                allocation['employee_name'],
-                allocation['date'],
-                allocation['shift_start'],
-                allocation['shift_end'],
-                allocation['hours']
-            ])
-        print("Planned shifts have been successfully generated and appended.")
-    
-def get_workdays_for_month(month, year):
-    workdays = []
-    num_days = calendar.monthrange(year, month)[1]
-    for day in range (1, num_days + 1):
-        date = datetime(year, month, day)
-        if date.weekday() != 6: 
-            workdays.append(date)
-        return workdays
-#generate_planned_shifts()
-    
-
-
-
-
-employee_info = SHEET.get_all_records()
-
-current_month = datetime.now().month
-current_year = datetime.now().year
-
-def get_workdays_for_month(month, year):
-    workdays = []
-    num_days = calendar.monthrange(year, month)[1]
-    for day in range(1, num_days + 1):
-        date = datetime(year, month, day)
-        if date in range(1, num_days + 1):
-            date = datetime(year, month, day)
-            if date.weekday() != 6:
-                workdays.append(date)
-    return workdays
-workdays = get_workdays_for_month(current_month, current_year)
-
-#Shift types
-full_time_fixed_shifts ={
-    "early": ("08:00", "16:30"),
-    "late": ("13:30", "22:00")
-}
-
-part_time_shifts = {
-    "morning": ("08:00", "13:00"),
-    "afternoon": ("13:00", "16:00"),
-    "evening": ("16:00", "21:00")
-}
-
-#Loop through employees and assign shifts
-shift_allocations = []
-
-for employee in employee_info:
-    emp_type = employee.get('employment_type', 'Not Found')
-    shift_type = employee.get('shift_type', 'Not Found')
-    shift_preference = employee.get('shift', 'Not Found')
-
-    for day in workdays:
-        if emp_type == "full_time":
-            if shift_type == "fixed":
-                shift_preference = employee['shift']
-                if not shift_preference:
-                    shift_preference = "early"
-                shift_start, shift_end = full_time_fixed_shifts[shift_preference]
-                hours_per_day = 8
-            elif shift_type == "flexible":
-
-                if workdays.index(day) % 6 < 3:
-                    shift_start, shift_end = full_time_fixed_shifts["early"]
-                else:
-                    shift_start, shift_end = full_time_fixed_shifts["late"]
-
-                hours_per_day = 8
-            
-            elif emp_type == "part-time":
-                #Assign part-time shifts
-                shift_preference = employee['shift']
-                if not shift_preference:
-                    shift_preference = "morning"
-                shift_start, shift_end = part_time_shifts[shift_preference]
-                hours_per_day = 5 if shift_preference != "evening" else 8.5
-            
-            shift_allocations.append({
-                "employee_id": employee['employee_id'],
-                "date": day.strftime("%Y-%m-%d"),
-                "shift_start": shift_start,
-                "shift_end": shift_end,
-                "hours": hours_per_day
-            })
-for allocation in shift_allocations:
-    SHIFT_SHEET.append_row([
-        allocation['employee_id'],
-        allocation['date'],
-        allocation['shift_start'],
-        allocation['shift_end'],
-        allocation['hours']
-    ])
-
-"""
-Function to allow employees to select shifts
-"""
-def select_shift(emp_id, emp_name):
-    #available_shift_sheet = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("available_shifts")
-    available_shifts = AVAILABLE_SHIFT_SHEET.get_all_values()[1:]
-
-    #if not available_shifts:
-        #print("No available shifts at the moment")
-        #shift_menu(emp_id, emp_name)
-        #return
-    print("\nAvailable Shifts:")
-    for i, shift in enumerate(available_shifts, start=1):
-        #shift_date = shift[0]
-        #shift_type = shift[1]
-        #start_time = shift[2]
-        #end_time = shift[3]
-        print(f"{i}. Date: {shift[0]}, Start: {shift[1]}, End: {shift[2]}")
-    shift_choice = input("Enter the number of the shift you want to select (or '0' to cancel): ").strip()
-    #NEW
-    if shift_choice.isdigit() and int(shift_choice) in range (1, len(available_shifts) +1):
-        selected_shift = available_shifts[int(shift_choice) -1]
-
-        SHIFT_SHEET.append_row([emp_name, emp_id, selected_shift[0], selected_shift[1], selected_shift[2]])
-        print("Shift successfully selected!")
-
-        shift_menu(emp_id, emp_name)
-    else:
-        print("invalid choice. Please try again")
-    #if shift_choice == '0':
-        #shift_menu(emp_id, emp_name)
-        #return
-    #validate shift choice
-    #if not shift_choice.isdigit() or not 1 <= int(shift_choice) <= len(available_shifts):
-        #print("Invalid choice")
-        #select_shift(emp_id, emp_name)
-        #return
-    
-    #Get choosen shift details
-    #chosen_shift = available_shifts[int(shift_choice) - 1]
-    #shift_date_str = chosen_shift[0]
-
-    #Check if employee already has a shift on that date
-    #shift_records = SHIFT_SHEET.get_all_values()[1:]
-    #for record in shift_records:
-        #if record[1] == emp_id and record[2] == shift_date_str:
-            #print("You already have a shift scheduled on this date.")
-            #shift_menu(emp_id, emp_name)
-            #return
-    #shift_date = [
-        #emp_name,
-        #emp_id,
-        #shift_date_str,
-        #chosen_shift[2],
-        #chosen_shift[3],
-        #'N/A',
-        #'N/A',
-        #'N/A',
-        #'N/A',
-        #'No'
-    #]
-
-    #SHIFT_SHEET.append_row(shift_date)
-
-    #available_shifts.delete_row(int(shift_choice) + 1)
-
-    #print("Shift successfully assigned to you")
-    #shift_menu(emp_id, emp_name)
-
-
-    """
-    Function to handle shift (Start, Pause, Resume, End)
-    """
 def handle_shift(emp_id, emp_name):
     shift_status = ""
     start_time = None
@@ -571,39 +343,142 @@ def handle_shift(emp_id, emp_name):
             receipt_issued
         ]
 
-        #SHEET.append_row([emp_id, emp_name, department, role, date_of_creation, last_login])
-
-        #print(f"Shift data to be added: {shift_data}")
-
-        #try:
         SHIFT_SHEET.append_row(shift_data)
         print("Shift data updated successfully!")
-        #except Exception as e:
-            #print(f"Error appending shift data to Google Sheet: {e}")
+
+
+"""
+Function to display all available shifts for the month
+"""
+def view_shifts(emp_id, emp_name):
+    today = datetime.now()
+    first_day_of_month = today.replace(day=1)
+    last_day_of_month = (today.replace(month=today.month % 12 + 1, day=1) - timedelta(days=1))
+
+    shift_records = SHIFT_SHEET.get_all_values()[1:]
+
+    employee_shifts = []
+    for record in shift_records:
+        if record[1] == emp_id:
+            shift_date = datetime.strptime(record[2], '%d-%m-%Y')
+            if first_day_of_month <= shift_date <= last_day_of_month:
+                employee_shifts.append(record)
+        
+    if not employee_shifts:
+        print(f"\nNo Shifts found for {emp_name} ({emp_id}) this month.")
+        #for shift in employee_shifts:
+            #print(f"Date: {shift[2]}, Start: {shift[3]}, End: {shift[4]}")
+    else:
+        print(f"\nShifts for {emp_name} {emp_id} this month.")
+        for shift in employee_shifts:
+            print(f"Date: {shift[2]}, Shift Type: {shift[3]}, Start Time: {shift[4]}, End Time. {shift[5]}")
+
+    shift_menu(emp_id, emp_name)
+
+"""
+Get the working days (Monday to Saturday) for the given month and year
+"""
+def get_workdays_for_month(month, year):
+    workdays = []
+    num_days = calendar.monthrange(year, month)[1]
+    for day in range(1, num_days + 1):
+        date = datetime(year, month, day)
+        if date.weekday() != 6:
+            workdays.append(date)
+    return workdays
+
+"""  
+Function to automatically generate and append planned shifts 
+    based on employee data
+"""
+def format_date(date):
+    return date.strftime('%d-%m-%Y')
+
+def generate_planned_shifts():
+    #Get data from employee_info sheet
+    employees = SHEET.get_all_records()
+
+    #Get employee month and yearr
+    today = datetime.now()
+    current_month = today.month
+    current_year = today.year
+
+    #Get all the workdas for the month
+    workdays = get_workdays_for_month(current_month, current_year)
+
+    #Loop though each employee
+    for employee in employees:
+        emp_name = employee.get('Full Name')
+        emp_id = employee.get('Employee ID')
+        employment_type = employee.get('Employment Type')
+        shift_type = employee.get('Shift Type')
+        #select_shift = employee.get('shift_data')
+        #print(f"Processing employee: {emp_name}, ID: {emp_id}")
+
+        shifts = []
+
+        if employment_type == "full-time":
+            if shift_type == "fixed":
+                #selected_shift = employee.get('Shift Data')
+                shift_start, shift_end = FULL_TIME_FIXED_SHIFTS.get(shift_type, ('N/A', 'N/A'))
+                for days in workdays:
+                    shifts.append([emp_name, emp_id, shift_start, shift_end, format_date(day)])
+
+            elif shift_type == "flexible":
+                alternating_shifts = ['early', 'late']
+                shift_counter = 0
+                for day in workdays:
+                    current_shift = alternating_shifts[shift_counter % 2]
+                    shift_start, shift_end = FULL_TIME_FIXED_SHIFTS[current_shift]
+                    shifts.append([emp_name, emp_id, format_date(day), shift_start, shift_end])
+                    shift_counter += 1
+
+        elif employment_type == "part_time":
+            if shift_type == "fixed":
+                shift_start, shift_end, PART_TIME_SHIFTS.get(shift_type, ('N/A', 'N/A'))
+                for day in workdays[:3]:
+                    shifts.append([emp_name, emp_id, format_date(day), shift_start, shift_end])
+
+            elif shift_type == "flexible":
+                alternating_shifts = ['morning', 'afternoon', 'evening']
+                shift_counter = 0
+                for day in workdays[:3]:
+                    current_shift = alternating_shifts[shift_counter % 3]
+                    shift_start, shift_end = PART_TIME_SHIFTS[current_shift]
+                    shifts.append[emp_name, emp_id, format_date(day), shift_start, shift_end]
+                    shift_counter += 1
+        
+        for shift in shifts:
+            PLANNED_SHIFTS_SHEET.append_row(shift)
+    print("Planned shifts generated and appended successfully!")
+
+
+"""
+Function to allow employees to select shifts
+"""
+def select_shift(emp_id, emp_name):
+    available_shifts = AVAILABLE_SHIFT_SHEET.get_all_values()[1:]
+    print("\nAvailable Shifts:")
+    for i, shift in enumerate(available_shifts):
+        print(f"{i + 1}. Date: {shift[0]}, Start: {shift[1]}, End: {shift[2]}")
+
+    shift_choice = input("Select a shift by entering the corresponding number: ").strip()
+    #NEW
+    if shift_choice.isdigit() and int(shift_choice) in range (1, len(available_shifts) +1):
+        selected_shift = available_shifts[int(shift_choice) -1]
+
+        PLANNED_SHIFT_SHEET.append_row([emp_name, emp_id, selected_shift[0], selected_shift[1]])
+        print("Shift successfully selected and recorded!")
+    else:
+        print("invalid selection. Please try again")
+    shift_menu(emp_id, emp_name)
+
+       
 """
 Function to display available shifts
 """
-def available_shift():
-    shifts = ["Morning Shifts: 9AM - 1PM", "Afternoon Shift: 1PM - 5PM", "Night Shift: 5PM - 9PM"]
-    print("Available Shifts:")
-    for i, shift in enumerate(shifts):
-        print(f"{i+1}. {shifts}")
-    choice = input("Select a shift: ")
-
-    try: 
-        shift_choice = shifts[int(choice) - 1]
-        print(f"Shift confirmed: {shift_choice}")
-    except (IndexError, ValueError):
-        print("Invalid shift selection")
-
-
-
-    main_menu()
-    
-
-
-
 
 
 if __name__ == "__main__":
     main_menu()
+    #generate_planned_shifts()
