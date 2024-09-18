@@ -372,26 +372,26 @@ def view_shifts(emp_id, emp_name):
     first_day_of_month = today.replace(day=1)
     last_day_of_month = (today.replace(month=today.month % 12 + 1, day=1) - timedelta(days=1))
 
-    shift_records = SHIFT_SHEET.get_all_values()[1:]
+    shift_records = PLANNED_SHIFT_SHEET.get_all_values()[1:]
 
     employee_shifts = []
     for record in shift_records:
-        if record[1] == emp_id:
-            shift_date = datetime.strptime(record[2], '%d-%m-%Y')
+        if record[0] == emp_id:
+            shift_date = datetime.strptime(record[5], '%Y-%m-%d')
             if first_day_of_month <= shift_date <= last_day_of_month:
                 employee_shifts.append(record)
         
     if not employee_shifts:
         print(f"\nNo Shifts found for {emp_name} ({emp_id}) this month.")
-        #for shift in employee_shifts:
-            #print(f"Date: {shift[2]}, Start: {shift[3]}, End: {shift[4]}")
     else:
         print(f"\nShifts for {emp_name} {emp_id} this month.")
         for shift in employee_shifts:
-            print(f"Date: {shift[2]}, Shift Type: {shift[3]}, Start Time: {shift[4]}, End Time. {shift[5]}")
+            print(f"Date: {shift[5]}, Shift Type: {shift[6]}, Start Time: {shift[8]}, End Time: {shift[8]} Hours: {shift[7]}")
 
     shift_menu(emp_id, emp_name)
-
+"""
+Function to generate shifts based on employment type and shift model
+"""
 def generate_planned_shifts():
     employee_info = SHEET.get_all_records()
 
@@ -472,30 +472,6 @@ def generate_planned_shifts():
 generate_planned_shifts()
 
 
-"""
-Function to allow employees to select shifts
-"""
-def select_shift(emp_id, emp_name):
-    available_shifts = AVAILABLE_SHIFT_SHEET.get_all_values()[1:]
-    print("\nAvailable Shifts:")
-    for i, shift in enumerate(available_shifts):
-        print(f"{i + 1}. Date: {shift[0]}, Start: {shift[1]}, End: {shift[2]}")
-
-    shift_choice = input("Select a shift by entering the corresponding number: ").strip()
-    #NEW
-    if shift_choice.isdigit() and int(shift_choice) in range (1, len(available_shifts) +1):
-        selected_shift = available_shifts[int(shift_choice) -1]
-
-        PLANNED_SHIFT_SHEET.append_row([emp_name, emp_id, selected_shift[0], selected_shift[1]])
-        print("Shift successfully selected and recorded!")
-    else:
-        print("invalid selection. Please try again")
-    shift_menu(emp_id, emp_name)
-
-       
-"""
-Function to display available shifts
-"""
 
 
 if __name__ == "__main__":
