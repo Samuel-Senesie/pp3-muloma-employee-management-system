@@ -72,14 +72,30 @@ Main menu function to dispaly welcome message and login access
 """
 def main_menu():
     print("Welcome to Muloma Employee Management System")
-    answer =input("Do you have an account? (YES/NO): ").strip().lower()
+    print("\n===== Main Menu =====")
+    #answer =input("Do you have an account? (YES/NO): ").strip().lower()
+    print("1. Create Account")
+    print("2. Log in")
+    print("3. Exit")
 
-    if answer == "yes":
-        login()
-    elif answer == "no":
+    choice = input("Select an option (1/2/3): ").strip()
+
+    if choice == "1":
         create_account()
+    elif choice == "2":
+        login()
+    elif choice == "3":
+        print("Exiting the system. Goodbye!")
+        exit()
     else:
-        sys.exit("Thank you for using Muloma Employee Management System. Goodbye!")
+        print("Please select a valid option.")
+
+    #if answer == "yes":
+        #login()
+    #elif answer == "no":
+        #create_account()
+    #else:
+        #sys.exit("Thank you for using Muloma Employee Management System. Goodbye!")
 """
 Login if account already exists
 """
@@ -240,6 +256,7 @@ def create_account():
 
         print(f"Your account has been created! Your Employee ID is: {emp_id}")
         print("Write this ID down and keep it safe. You will need it to log in")
+        print("\nReturning to main menu")
         main_menu()
     else:
         print("Please correct your information.")
