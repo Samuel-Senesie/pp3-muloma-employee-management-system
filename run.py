@@ -424,10 +424,6 @@ def generate_planned_shifts():
         shift_type = employee.get("Shift Type")
         department = employee.get("Department")
 
-        #if not all([emp_id, name, employment_type, shift_model]):
-            #print(f"Skipping incomplete employee data: {employee}")
-            #continue
-
         # Start the shift loop over the data range
         current_date = start_date
 
@@ -481,7 +477,6 @@ def generate_planned_shifts():
                 department,
                 shift_date,
                 shift_key if shift_key else 'Not Assigned',
-                #shift_type, # if employment_type == 'full-time' else shift_key.split('-')[0],
                 number_of_hours,
                 shift_start_str,
                 shift_end_str
@@ -502,25 +497,55 @@ generate_planned_shifts()
 Function to display all available shifts for the month
 """
 def view_shifts(emp_id, emp_name):
+    #Get current date
     today = datetime.now()
-    first_day_of_month = today.replace(day=1)
-    last_day_of_month = (today.replace(month=today.month % 12 + 1, day=1) - timedelta(days=1))
 
+    # First and last days of the current month 
+    first_day_of_current_month = today.replace(day=1)
+
+    last_day_of_current_month = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+
+    next_month = (today.month % 12) + 1
+    year_increment = today.year if today.month != 12 else today.year + 1
+    #year_increment = today.year + (today.month == 12)
+    first_day_of_next_month = datetime(year_increment, next_month, 1)
+
+    last_day_of_next_month = first_day_of_next_month.replace(day=calendar.monthrange(year_increment, next_month)[1])
+
+    # Fetch shifts from planned shift sheet
     shift_records = PLANNED_SHIFT_SHEET.get_all_values()[1:]
 
-    employee_shifts = []
+    # Filter shift for the employees
+    current_month_shifts = []
+    next_month_shifts = []
+
     for record in shift_records:
         if record[0] == emp_id:
+            # Parse the shift date from the record
             shift_date = datetime.strptime(record[5], '%Y-%m-%d')
-            if first_day_of_month <= shift_date <= last_day_of_month:
-                employee_shifts.append(record)
-        
-    if not employee_shifts:
-        print(f"\nNo Shifts found for {emp_name} ({emp_id}) this month.")
+
+            # Group shifts by current and next month 
+            if first_day_of_current_month <= shift_date <= last_day_of_current_month:
+                current_month_shifts.append(record)
+            elif first_day_of_next_month <= shift_date <= last_day_of_next_month:
+                next_month_shifts.append(record)
+
+    # Display shifts for current month     
+    if not current_month_shifts:
+        print(f"\nNo Shifts found for {emp_name} ({emp_id}) in {today.strftime('%B')}.")
     else:
-        print(f"\nShifts for {emp_name} {emp_id} this month.")
-        for shift in employee_shifts:
-            print(f"Date: {shift[5]}, Shift Type: {shift[6]}, Start Time: {shift[8]}, End Time: {shift[8]} Hours: {shift[7]}")
+        print(f"\nShifts for {emp_name} ({emp_id}) in {today.strftime('%B')}:")
+        for shift in current_month_shifts:
+            print(f"Date: {shift[5]}, Shift Type: {shift[6]}, Start Time: {shift[8]}, End Time: {shift[9]}, Hours: {shift[7]}")
+    
+    #Display shifts for the following month
+    next_month_name = first_day_of_next_month.strftime('%B')
+    if not next_month_shifts:
+        print(f"\nNo Shifts found for {emp_name} ({emp_id}) in {next_month_name}.")
+    else:
+        print(f"\nShifts for {emp_name} ({emp_id}) in {next_month_name}:")
+        for shift in next_month_shifts:
+            print(f"Date: {shift[5]}, Shift Type: {shift[6]}, Start Time: {shift[8]}, End Time: {shift[9]}, Hours: {shift[7]}")
 
     shift_menu(emp_id, emp_name)
 
