@@ -39,8 +39,8 @@ FULL_TIME_FLEXIBLE_SHIFTS = {
 
 PART_TIME_SHIFTS = {
         'morning': ('08:00', '13:00'),
-        'afternoon': ('13:00', '16:00'),
-        'evening': ('16:00', '21:00')
+        'afternoon': ('13:00', '18:00'),
+        'evening': ('17:00', '22:00')
     }
 
 #Validate Departments and Roles
@@ -219,11 +219,12 @@ def create_account():
             while shift_type not in ["early", "late"]:
                 shift_type = input("Would you prefer an early (08:00 - 16:30) or late (13:30 - 22:00) shift? (early/late): ").strip().lower()
         elif shift_model == "flexible":
+            shift_type = "flexible" #New
             print("You will be assigned 3 early and 3 late shifts each week.")
     else:
         shift_model = "fixed"
         print("\nPart-time employees can work up to 3 days per week, for a total of 20-40hours.")
-        print("Shift options are: \n1. Morning: 08:00 - 13:00\n2. Afternoon: 13:00 - 16:00\n3. Evening: 16:00 - 21:00")
+        print("Shift options are: \n1. Morning: 08:00 - 13:00\n2. Afternoon: 13:00 - 18:00\n3. Evening: 17:00 - 22:00")
         shift_choice = ""
         while shift_choice not in ["1", "2", "3"]:
             shift_choice = input(f"Select shift (1/2/3): ").strip()
@@ -411,7 +412,7 @@ def generate_planned_shifts():
 
     shift_timings = {**FULL_TIME_FIXED_SHIFTS, **FULL_TIME_FLEXIBLE_SHIFTS, **PART_TIME_SHIFTS}
 
-    #Generate shifts for the next 60 days (approx. two months)
+    # Generate shifts for the next 60 days (approx. two months)
     start_date = datetime.today()
     end_date = start_date + timedelta(days=60)
 
@@ -423,32 +424,45 @@ def generate_planned_shifts():
         shift_type = employee.get("Shift Type")
         department = employee.get("Department")
 
-        #if not all([emp_id, name, employment_type, shift_model, shift_type]):
+        #if not all([emp_id, name, employment_type, shift_model]):
             #print(f"Skipping incomplete employee data: {employee}")
             #continue
 
         # Start the shift loop over the data range
         current_date = start_date
+
         while current_date <= end_date:
             #skip Sunday 
             if current_date.weekday() == 6:
                 current_date += timedelta(days=1)
                 continue
 
-            #Define shift key based on employment type and shift model
-            if employment_type == 'Full-Time':
-                if shift_model == 'Fixed':
-                    shift_key = f"fixed-{shift_type.lower()}"
-                else:
-                    if (current_date - start_date).days % 6 < 3:
+            #shift_key = None
+            shift_start_str, shift_end_str = '00:00', '00:00'
+
+            if employment_type == 'full-time':
+                if shift_model == 'fixed':
+                    shift_key = shift_type.lower()
+                    shift_start_str, shift_end_str = shift_timings.get(shift_key, ('00:00', '00:00')) 
+
+                elif shift_model == 'flexible':
+                    days_since_start = (current_date - start_date).days
+                    days_in_cycle = days_since_start % 7
+
+                    if days_in_cycle < 3:
                         shift_key = 'flexible-early'
+                        shift_start_str, shift_end_str = shift_timings['flexible-early']
                     else:
                         shift_key = 'flexible-late'
-            else:
-                shift_key = shift_type.lower()
+                        shift_start_str, shift_end_str = shift_timings['flexible_late']
 
-            # Get shift timing from shift key
-            shift_start_str, shift_end_str = shift_timings.get(shift_key, ('00:00', '00:00'))
+            elif employment_type == 'part-time':
+                shift_key = shift_type.lower() 
+                shift_start_str, shift_end_str = shift_timings.get(shift_key, ('00:00', '00:00'))  
+
+            if shift_start_str == '00:00' and shift_end_str == '00:00':  
+                current_date += timedelta(days=1)
+                continue      
 
             #Get current date
             shift_date = current_date.strftime('%Y-%m-%d')
@@ -466,7 +480,8 @@ def generate_planned_shifts():
                 shift_model,
                 department,
                 shift_date,
-                shift_type,
+                shift_key if shift_key else 'Not Assigned',
+                #shift_type, # if employment_type == 'full-time' else shift_key.split('-')[0],
                 number_of_hours,
                 shift_start_str,
                 shift_end_str
@@ -474,10 +489,14 @@ def generate_planned_shifts():
 
             current_date += timedelta(days=1)
     if planned_shifts:
+        existing_data = PLANNED_SHIFT_SHEET.get_all_records()
+        if existing_data:
+            header = list(existing_data[0].keys())
+            PLANNED_SHIFT_SHEET.clear()
+            PLANNED_SHIFT_SHEET.append_row(header)
         PLANNED_SHIFT_SHEET.append_rows(planned_shifts)
 
 generate_planned_shifts()
-
 
 """
 Function to display all available shifts for the month
@@ -504,8 +523,6 @@ def view_shifts(emp_id, emp_name):
             print(f"Date: {shift[5]}, Shift Type: {shift[6]}, Start Time: {shift[8]}, End Time: {shift[8]} Hours: {shift[7]}")
 
     shift_menu(emp_id, emp_name)
-
-
 
 if __name__ == "__main__":
     main_menu()
