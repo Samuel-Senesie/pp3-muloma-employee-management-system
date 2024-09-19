@@ -28,9 +28,14 @@ PLANNED_SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").wo
 
 #Shift definitions
 FULL_TIME_FIXED_SHIFTS = { 
-        'early': ('08:00', '13:00'),
+        'early': ('08:00', '16:30'),
         'late': ('13:30', '22:00')
     }
+
+FULL_TIME_FLEXIBLE_SHIFTS = {
+    'flexible-early': ('08:00', '16:30'),
+    'flexible_late': ('13:30', '22:00')
+}
 
 PART_TIME_SHIFTS = {
         'morning': ('08:00', '13:00'),
@@ -219,15 +224,11 @@ def create_account():
         shift_model = "fixed"
         print("\nPart-time employees can work up to 3 days per week, for a total of 20-40hours.")
         print("Shift options are: \n1. Morning: 08:00 - 13:00\n2. Afternoon: 13:00 - 16:00\n3. Evening: 16:00 - 21:00")
-        part_time_shifts = []
-        while len(part_time_shifts) < 3:
-            shift_choice = input(f"Select shift {len(part_time_shifts) + 1} (1/2/3): ").strip()
-            shift_map = {"1": "Morning", "2": "Afternoon", "3": "Evening"}
-            if shift_choice in ["1", "2", "3"]:
-                part_time_shifts.append(shift_map[shift_choice])
-            else:
-                print("Invalid choice. Please try again.")
-        shift_type = " , ".join(part_time_shifts)
+        shift_choice = ""
+        while shift_choice not in ["1", "2", "3"]:
+            shift_choice = input(f"Select shift (1/2/3): ").strip()
+        shift_map = {"1": "Morning", "2": "Afternoon", "3": "Evening"}
+        shift_type = shift_map[shift_choice]
 
     #Department selection
     print("\nSelect your department:")
@@ -408,27 +409,23 @@ def generate_planned_shifts():
 
     planned_shifts = []
 
-    shift_timings = {
-        'fixed-early': ('08:00', '16:00'),
-        'fixed-late': ('13:30', '22:00'),
-        'flexible-early': ('08:00', '16:00'),
-        'flexible-late': ('13:30', '22:00'),
-        'morning': ('08:00', '13:00'),
-        'afternoon': ('13:00', '16:00'),
-        'evening': ('16:00', '21:00'),
-    }
+    shift_timings = {**FULL_TIME_FIXED_SHIFTS, **FULL_TIME_FLEXIBLE_SHIFTS, **PART_TIME_SHIFTS}
 
     #Generate shifts for the next 60 days (approx. two months)
     start_date = datetime.today()
     end_date = start_date + timedelta(days=60)
 
     for employee in employee_info:
-        emp_id = employee["Employee ID"]
-        name = employee["Full Name"]
-        employment_type = employee["Employment Type"]
-        shift_model = employee["Shift Model"]
-        shift_type = employee["Shift Type"]
-        department = employee["Department"]
+        emp_id = employee.get("Employee ID")
+        name = employee.get("Full Name")
+        employment_type = employee.get("Employment Type")
+        shift_model = employee.get("Shift Model")
+        shift_type = employee.get("Shift Type")
+        department = employee.get("Department")
+
+        #if not all([emp_id, name, employment_type, shift_model, shift_type]):
+            #print(f"Skipping incomplete employee data: {employee}")
+            #continue
 
         # Start the shift loop over the data range
         current_date = start_date
