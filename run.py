@@ -4,12 +4,12 @@ Imported libraries for runing the app
 import gspread
 from google.oauth2.service_account import Credentials
 import re
-import uuid #for generating unique ID
+import uuid  # for generating unique ID
 import calendar
-from datetime import datetime, timedelta #date and time for shift timedtamps
+from datetime import datetime, timedelta  # date and time for shift timedtamps
 import sys
 
-#Set project scope for Google Sheets API
+# Set project scope for Google Sheets API
 SCOPE = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive.file",
@@ -20,14 +20,13 @@ CREDS = Credentials.from_service_account_file("creds.json")
 SCOPED_CREDS = CREDS.with_scopes(SCOPE)
 GSPREAD_CLIENT = gspread.authorize(SCOPED_CREDS)
 
-#Open relevant Google sheets
+# Open relevant Google sheets
 SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("employee_info")
 SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("shift_data")
-#AVAILABLE_SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("available_shifts")
 PLANNED_SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("planned_shifts")
 
-#Shift definitions
-FULL_TIME_FIXED_SHIFTS = { 
+# Shift definitions
+FULL_TIME_FIXED_SHIFTS = {
         'early': ('08:00', '16:30'),
         'late': ('13:30', '22:00')
     }
@@ -43,9 +42,9 @@ PART_TIME_SHIFTS = {
         'evening': ('17:00', '22:00')
     }
 
-#Validate Departments and Roles
+# Validate Departments and Roles
 
-#list of valid departments 
+# list of valid departments
 valid_departments = [
     "Poultry Farming",
     "Fish Farming",
@@ -57,7 +56,7 @@ valid_departments = [
     "General Farmhands"
 ]
 
-#list of valid roles
+# list of valid roles
 valid_roles = [
     "General Manager",
     "Director",
@@ -76,10 +75,11 @@ valid_roles = [
 """
 Main menu function to dispaly welcome message and login access
 """
+
+
 def main_menu():
     print("Welcome to Muloma Employee Management System")
     print("\n===== Main Menu =====")
-    #answer =input("Do you have an account? (YES/NO): ").strip().lower()
     print("1. Create Account")
     print("2. Log in")
     print("3. Exit")
@@ -96,9 +96,12 @@ def main_menu():
     else:
         print("Please select a valid option.")
 
+
 """
 Login if account already exists
 """
+
+
 def login():
     name = input("Enter your full Name: ").strip()
     emp_id = input("Enter your Employee ID: ").strip()
@@ -106,39 +109,43 @@ def login():
     """
     Fetch all rows from the 'Employee info' sheet(excluding headers)
     """
-    employee_info = SHEET.get_all_values()[1:] #skip the first row
+    employee_info = SHEET.get_all_values()[1:]  # skip the first row
 
-    #loop through rows of the 'employees_info' sheet to find find an exact match
+    # loop through rows of the 'employees_info' sheet to find find an exact match
     for row in employee_info:
-        full_name = row[0].strip() #Get name exactly is in the sheet
+        full_name = row[0].strip()  # Get name exactly is in the sheet
         stored_emp_id = row[2].strip()
 
         if name == full_name and emp_id == stored_emp_id:
             print(f"Welcome, {name}!")
 
-            #update the last Login data 
+            # update the last Login data
             current_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
             row_index = employee_info.index(row) + 2
             SHEET.update_cell(row_index, 11, current_time)
 
-            #Pass employee ID and name to shift menu
+            # Pass employee ID and name to shift menu
             shift_menu(emp_id, name)
             return
 
     print(f"Login failed. The name or ID does not match our records")
     main_menu()
 
-#Function to validate employee name 
+
+# Function to validate employee name
 def validate_name(name):
     return re.fullmatch(r"[A-Za-z\s\-]+", name) is not None
 
-#function to validate phone number (only digits allowed)
+
+# function to validate phone number (only digits allowed)
 def validate_phone_number(phone_number):
     return re.fullmatch(r"\d{10,15}", phone_number) is not None
+
 
 # Function to validate email address
 def validate_email(email):
     return re.fullmatch(r"[^@]+[^@]+\.[^@]+", email) is not None
+
 
 # Function to validate either a phone number or email
 def validate_contact_info(contact_info):
@@ -149,9 +156,12 @@ def validate_contact_info(contact_info):
     else:
         return "The phone number or email address is invalid"
 
+
 """
 Function to create account for new Employees
 """
+
+
 def create_account():
     # Validate first name
     first_name = input("Enter your first name (enter 0 to go back): ").strip()
@@ -172,7 +182,7 @@ def create_account():
         last_name = input("Enter your last name (enter 0 to go back): ").strip()
         if last_name == "0":
             return
-    
+
     # Validate phone number or email address
     email_or_phone = input("Enter your email or phone numer (enter 0 to go back): ").strip()
     if email_or_phone == "0":
@@ -183,7 +193,7 @@ def create_account():
         if email_or_phone == "0":
             return
 
-    #Get employees date of birth
+    # Get employees date of birth
     dob_input = input("Enter your date of birth (DD-MM-YYYY). ").strip()
 
     try:
@@ -191,8 +201,8 @@ def create_account():
     except ValueError:
         print("Invalid date format. Please enter the date in the format DD-MM-YYYY.")
         return create_account()
-    
-    #check users age if they are 18 or older
+
+    # check users age if they are 18 or older
     today = datetime.now()
     age = today.year -dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
@@ -200,8 +210,8 @@ def create_account():
         print("Sorry, you must be 18 years or older to create an account")
         main_menu()
         return
-    
-    #Retrieve and compare employee data for date of birth and email/phone number with existing data base
+
+    # Retrieve and compare employee data for date of birth and email/phone number with existing data base
     employee_info = SHEET.get_all_values()[1:]
     for row in employee_info:
         if dob_input == row[1].strip() and email_or_phone == row[3].strip():
@@ -209,20 +219,20 @@ def create_account():
             main_menu()
             return
 
-    #Display and collect employment type
+    # Display and collect employment type
     employment_type = ""
     while employment_type not in ["full-time", "part-time"]:
         employment_type = input("Are you a full-time or part-time employee? (full-time/part-time): ").strip().lower()
-    
-    #Full-time employees to selecte between fixed and flexible shifts 
+ 
+    # Full-time employees to selecte between fixed and flexible shifts 
     shift_model = ""
     shift_type = ""
     if employment_type == "full-time":
         while shift_model not in ["fixed", "flexible"]:
             shift_model = input("Do you prefere a fixed of flexible shift? (fixed/flexible) (enter 0 to go back): ").strip().lower()
             if shift_model == "0":
-                return 
-            
+                return
+           
         if shift_model == "fixed":
             while shift_type not in ["early", "late"]:
                 shift_type = input("Would you prefer an early (08:00 - 16:30) or late (13:30 - 22:00) shift? (early/late) (enter 0 to go back): ").strip().lower()
@@ -243,19 +253,19 @@ def create_account():
         shift_map = {"1": "Morning", "2": "Afternoon", "3": "Evening"}
         shift_type = shift_map[shift_choice]
 
-    #Department selection
+    # Department selection
     print("\nSelect your department:")
     for i, dept in enumerate(valid_departments, 1):
         print(f"{i}. {dept}")
     department_choice = input("Enter the number that corresponds with your department: ")
-    
+
     if not department_choice.isdigit() or int(department_choice) not in range(1, len(valid_departments) + 1):
         print("Invalid Choice. Please select a valid department.")
     else: 
         department = valid_departments[int(department_choice) - 1]
-        
+ 
 
-    #Validate department input
+    # Validate department input
     while not department_choice.isdigit() or int(department_choice) not in range(1, len(valid_departments) + 1):
         print("Invalid choice. Please selecte a valid department number.")
         department_choice = input("Enter the number corresponding to your department: ")
@@ -268,13 +278,13 @@ def create_account():
 
     role_choice = input("Enter the number that corresponds to your role: ")
 
-    #validate role input
+    # validate role input
     while not role_choice.isdigit() or int(role_choice) not in range(1, len(valid_roles) + 1):
         print("Invalid choice. please selecte a valid role number")
         role_choice = input("Enter the number that corresponds to your role: ")
         if shift_choice == "0":
             return
-    role = valid_roles[int(role_choice) - 1] #get the selected role 
+    role = valid_roles[int(role_choice) - 1]  # get the selected role 
 
     full_name = f"{first_name} {last_name}"
 
@@ -293,7 +303,7 @@ def create_account():
     confim = input("\nIs the above information correct? (yes/no): ").strip().lower()
 
     if confim == "yes":
-        #Generate a short employee ID, 5 characters long in upperclass
+        # Generate a short employee ID, 5 characters long in upperclass
         emp_id = str(uuid.uuid4())[0:5].upper()
 
         """
@@ -301,7 +311,6 @@ def create_account():
         """
         date_of_creation = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
         last_login = "N/A"
-        #shift_data = shift_type if employment_type == "full-time" else " , ".join(part_time_shifts)
 
         """
          Append new employee data to Google sheet for all fields
@@ -318,7 +327,7 @@ def create_account():
         main_menu()
     else:
         print("Please correct your information.")
-        create_account() #Rsetart the process
+        create_account()  # Rsetart the process
 
 """
 Function to display shift menu
@@ -327,8 +336,7 @@ def shift_menu(emp_id, emp_name):
     print("\nShift Management Menu:")
     print("1. Start/End a shift")
     print("2. View my Shifts")
-    #print("3. Select Available Shifts")
-    print("4. Log out")
+    print("3. Log out")
 
     choice = input("Enter your choice: ").strip()
 
@@ -337,8 +345,6 @@ def shift_menu(emp_id, emp_name):
     elif choice == "2":
         view_shifts(emp_id, emp_name)        
     elif choice == "3":
-            select_shift(emp_id, emp_name)
-    elif choice == "4":
         main_menu()
     else:
         print("Invalid choice. Please try again.")
@@ -374,7 +380,7 @@ def handle_shift(emp_id, emp_name):
             pause_time = datetime.now()
             pause_time_str = pause_time.strftime('%H:%M:%S')
             shift_status = "Shift paused"
-            print(f"shift paused at {pause_time_str}") #round time to there nearest seconds
+            print(f"shift paused at {pause_time_str}")  # round time to there nearest seconds
         elif action == "3" and pause_time:
             resume_time = datetime.now()
             resume_time_str = resume_time.strftime('%H:%M:%S')
@@ -397,7 +403,7 @@ def handle_shift(emp_id, emp_name):
         print(f"Total hours worked: {total_time_str}")
         print(f"Total break time: {break_time_str}")
 
-        #Get shift date
+        # Get shift date
         shift_date = start_time.strftime('%d-%m-%Y')
 
         receipt_issued = "Yes"
@@ -449,12 +455,12 @@ def generate_planned_shifts():
         current_date = start_date
 
         while current_date <= end_date:
-            #skip Sunday 
+            # skip Sunday 
             if current_date.weekday() == 6:
                 current_date += timedelta(days=1)
                 continue
 
-            #shift_key = None
+            # shift_key = None
             shift_start_str, shift_end_str = '00:00', '00:00'
 
             if employment_type == 'full-time':
@@ -481,10 +487,10 @@ def generate_planned_shifts():
                 current_date += timedelta(days=1)
                 continue      
 
-            #Get current date
+            # Get current date
             shift_date = current_date.strftime('%Y-%m-%d')
             
-            #Calculate number of hours in each shift
+            # Calculate number of hours in each shift
             shift_start_time = datetime.strptime(shift_start_str, "%H:%M")
             shift_end_time = datetime.strptime(shift_end_str, "%H:%M")
             duration = shift_end_time - shift_start_time
@@ -518,7 +524,7 @@ generate_planned_shifts()
 Function to display all available shifts for the month
 """
 def view_shifts(emp_id, emp_name):
-    #Get current date
+    # Get current date
     today = datetime.now()
 
     # First and last days of the current month 
@@ -528,7 +534,7 @@ def view_shifts(emp_id, emp_name):
 
     next_month = (today.month % 12) + 1
     year_increment = today.year if today.month != 12 else today.year + 1
-    #year_increment = today.year + (today.month == 12)
+    # year_increment = today.year + (today.month == 12)
     first_day_of_next_month = datetime(year_increment, next_month, 1)
 
     last_day_of_next_month = first_day_of_next_month.replace(day=calendar.monthrange(year_increment, next_month)[1])
@@ -559,7 +565,7 @@ def view_shifts(emp_id, emp_name):
         for shift in current_month_shifts:
             print(f"Date: {shift[5]}, Shift Type: {shift[6]}, Start Time: {shift[8]}, End Time: {shift[9]}, Hours: {shift[7]}")
     
-    #Display shifts for the following month
+    # Display shifts for the following month
     next_month_name = first_day_of_next_month.strftime('%B')
     if not next_month_shifts:
         print(f"\nNo Shifts found for {emp_name} ({emp_id}) in {next_month_name}.")
@@ -569,6 +575,10 @@ def view_shifts(emp_id, emp_name):
             print(f"Date: {shift[5]}, Shift Type: {shift[6]}, Start Time: {shift[8]}, End Time: {shift[9]}, Hours: {shift[7]}")
 
     shift_menu(emp_id, emp_name)
+    
 
 if __name__ == "__main__":
     main_menu()
+
+
+# End of file
