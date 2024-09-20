@@ -23,7 +23,7 @@ GSPREAD_CLIENT = gspread.authorize(SCOPED_CREDS)
 #Open relevant Google sheets
 SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("employee_info")
 SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("shift_data")
-AVAILABLE_SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("available_shifts")
+#AVAILABLE_SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("available_shifts")
 PLANNED_SHIFT_SHEET = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("planned_shifts")
 
 #Shift definitions
@@ -96,12 +96,6 @@ def main_menu():
     else:
         print("Please select a valid option.")
 
-    #if answer == "yes":
-        #login()
-    #elif answer == "no":
-        #create_account()
-    #else:
-        #sys.exit("Thank you for using Muloma Employee Management System. Goodbye!")
 """
 Login if account already exists
 """
@@ -112,11 +106,9 @@ def login():
     """
     Fetch all rows from the 'Employee info' sheet(excluding headers)
     """
-    #employee_info_sheet = GSPREAD_CLIENT.open("muloma_employee_managment_system").worksheet("employee_info")
     employee_info = SHEET.get_all_values()[1:] #skip the first row
 
     #loop through rows of the 'employees_info' sheet to find find an exact match
-
     for row in employee_info:
         full_name = row[0].strip() #Get name exactly is in the sheet
         stored_emp_id = row[2].strip()
@@ -162,21 +154,34 @@ Function to create account for new Employees
 """
 def create_account():
     # Validate first name
-    first_name = input("Enter your first name: ").strip()
+    first_name = input("Enter your first name (enter 0 to go back): ").strip()
+    if first_name == "0":
+        return
     while not validate_name(first_name):
         print("Invalid first name, only letters, spaces and hyphens are allowed")
-        first_name = input("Enter your first name: ").strip()
+        first_name = input("Enter your first name (enter 0 to go back): ").strip()
+        if first_name == "0":
+            return
+
     # Validate last name
-    last_name = input("Enter your last name: ").strip()
+    last_name = input("Enter your last name (enter 0 to go back): ").strip()
+    if last_name == "0":
+        return
     while not validate_name(last_name):
         print("Invalid last name, only letters, spaces and hyphens are allowed")
-        last_name = input("Enter your last name: ").strip()
+        last_name = input("Enter your last name (enter 0 to go back): ").strip()
+        if last_name == "0":
+            return
     
     # Validate phone number or email address
-    email_or_phone = input("Enter your email or phone numer: ").strip()
+    email_or_phone = input("Enter your email or phone numer (enter 0 to go back): ").strip()
+    if email_or_phone == "0":
+        return
     while validate_contact_info(email_or_phone) != "Phone number is valid." and validate_contact_info(email_or_phone) != "Email address is valid.":
         print(validate_contact_info(email_or_phone))
-        email_or_phone = input("Enter a valid phone number or email address: ").strip()
+        email_or_phone = input("Enter a valid phone number or email address (enter 0 to go back): ").strip()
+        if email_or_phone == "0":
+            return
 
     #Get employees date of birth
     dob_input = input("Enter your date of birth (DD-MM-YYYY). ").strip()
@@ -214,12 +219,17 @@ def create_account():
     shift_type = ""
     if employment_type == "full-time":
         while shift_model not in ["fixed", "flexible"]:
-            shift_model = input("Do you prefere a fixed of flexible shift? (fixed/flexible): ").strip().lower()
+            shift_model = input("Do you prefere a fixed of flexible shift? (fixed/flexible) (enter 0 to go back): ").strip().lower()
+            if shift_model == "0":
+                return 
+            
         if shift_model == "fixed":
             while shift_type not in ["early", "late"]:
-                shift_type = input("Would you prefer an early (08:00 - 16:30) or late (13:30 - 22:00) shift? (early/late): ").strip().lower()
+                shift_type = input("Would you prefer an early (08:00 - 16:30) or late (13:30 - 22:00) shift? (early/late) (enter 0 to go back): ").strip().lower()
+                if shift_type == "0":
+                    return
         elif shift_model == "flexible":
-            shift_type = "flexible" #New
+            shift_type = "flexible" 
             print("You will be assigned 3 early and 3 late shifts each week.")
     else:
         shift_model = "fixed"
@@ -227,15 +237,23 @@ def create_account():
         print("Shift options are: \n1. Morning: 08:00 - 13:00\n2. Afternoon: 13:00 - 18:00\n3. Evening: 17:00 - 22:00")
         shift_choice = ""
         while shift_choice not in ["1", "2", "3"]:
-            shift_choice = input(f"Select shift (1/2/3): ").strip()
+            shift_choice = input(f"Select shift (1/2/3) (enter 0 to go back): ").strip()
+            if shift_choice == "0":
+                return
         shift_map = {"1": "Morning", "2": "Afternoon", "3": "Evening"}
         shift_type = shift_map[shift_choice]
 
     #Department selection
     print("\nSelect your department:")
     for i, dept in enumerate(valid_departments, 1):
-        print(f"{1}. {dept}")
+        print(f"{i}. {dept}")
     department_choice = input("Enter the number that corresponds with your department: ")
+    
+    if not department_choice.isdigit() or int(department_choice) not in range(1, len(valid_departments) + 1):
+        print("Invalid Choice. Please select a valid department.")
+    else: 
+        department = valid_departments[int(department_choice) - 1]
+        
 
     #Validate department input
     while not department_choice.isdigit() or int(department_choice) not in range(1, len(valid_departments) + 1):
@@ -247,12 +265,15 @@ def create_account():
     print("\nSelect your role from the list below: ")
     for i, role in enumerate(valid_roles, 1):
         print(f"{i}. {role}")
+
     role_choice = input("Enter the number that corresponds to your role: ")
 
     #validate role input
     while not role_choice.isdigit() or int(role_choice) not in range(1, len(valid_roles) + 1):
         print("Invalid choice. please selecte a valid role number")
         role_choice = input("Enter the number that corresponds to your role: ")
+        if shift_choice == "0":
+            return
     role = valid_roles[int(role_choice) - 1] #get the selected role 
 
     full_name = f"{first_name} {last_name}"
@@ -306,7 +327,7 @@ def shift_menu(emp_id, emp_name):
     print("\nShift Management Menu:")
     print("1. Start/End a shift")
     print("2. View my Shifts")
-    print("3. Select Available Shifts")
+    #print("3. Select Available Shifts")
     print("4. Log out")
 
     choice = input("Enter your choice: ").strip()
